@@ -14,7 +14,8 @@ type Folder = {
 type Note = {
   id: string
   title: string
-  content: string
+  file_url?: string
+  content?: string
   folder_id: string | null
   created_at: string
 }
@@ -28,6 +29,7 @@ export default function DashboardPage() {
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
   const [folderStack, setFolderStack] = useState<string[]>([])
+  
 
   /* ---------------- AUTH ---------------- */
 
@@ -192,6 +194,47 @@ export default function DashboardPage() {
     }
   }
 
+  const handleUploadNote = async (folderId: string) => {
+    const fileInput = document.createElement('input')
+    fileInput.type = 'file'
+    fileInput.accept = '.pdf,.docx,.txt,.md'
+    fileInput.onchange = async () => {
+      const file = fileInput.files?.[0]
+      if (!file) return
+
+      // Upload file to Supabase Storage
+      const filePath = `${folderId}/${file.name}`
+      const { data, error: uploadError } = await supabase.storage
+        .from('notes-files')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError)
+        return
+      }
+
+      // Insert note into database
+      const { data: note, error: insertError } = await supabase
+        .from('notes')
+        .insert({
+          folder_id: folderId,
+          user_id: (await supabase.auth.getUser()).data.user?.id,
+          title: file.name,
+          file_url: data.path,
+        })
+        .select()
+        .single()
+
+      if (insertError) {
+        console.error('Insert note error:', insertError)
+      } else {
+        console.log('Note created:', note)
+      }
+    }
+    fileInput.click()
+  }
+
+
   /* ---------------- UI ---------------- */
 
   return (
@@ -272,6 +315,13 @@ export default function DashboardPage() {
             className="bg-green-500 text-white px-4 py-2 rounded"
           >
             Create Note
+          </button>
+
+          <button
+            onClick={handleUploadNote.bind(null, currentFolderId ?? '')}
+            className="bg-blue-500 text-white px-4 py-2 rounded"
+          >
+            Upload Note
           </button>
         </div>
       </div>
