@@ -27,7 +27,7 @@ export default function LoginPage() {
 
   return (
     <main className="p-6 max-w-sm mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Login</h1>
+      <h1 className="mt-36 text-2xl font-bold mb-4">Login</h1>
 
       <form onSubmit={handleLogin} className="space-y-4">
         <input
@@ -50,7 +50,7 @@ export default function LoginPage() {
 
         {error && <p className="text-red-500 text-sm">{error}</p>}
 
-        <button className="w-full bg-black text-white p-2 rounded">
+        <button className="w-full bg-[#453750] text-white px-6 py-3 transition duration-300 ease-in-out hover:bg-[#5b4769] hover:scale-105 hover:shadow-lg">
           Log In
         </button>
       </form>
