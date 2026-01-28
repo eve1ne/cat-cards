@@ -20,7 +20,11 @@ type Note = {
   created_at: string
 }
 
+
+
+
 export default function DashboardPage() {
+  
   const router = useRouter()
 
   const [email, setEmail] = useState<string | null>(null)
@@ -28,8 +32,6 @@ export default function DashboardPage() {
   const [notes, setNotes] = useState<Note[]>([])
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
-  const [folderStack, setFolderStack] = useState<string[]>([])
-  
 
   /* ---------------- AUTH ---------------- */
 
@@ -47,19 +49,14 @@ export default function DashboardPage() {
     getUser()
   }, [router])
 
-  /* ---------------- FETCH FOLDERS ---------------- */
+  /* ---------------- FETCH ALL FOLDERS (SIDEBAR) ---------------- */
 
   useEffect(() => {
     const fetchFolders = async () => {
-      let query = supabase.from('folders').select('*').order('created_at', { ascending: true })
-
-      if (currentFolderId === null) {
-        query = query.is('parent_id', null)
-      } else {
-        query = query.eq('parent_id', currentFolderId)
-      }
-
-      const { data, error } = await query
+      const { data, error } = await supabase
+        .from('folders')
+        .select('*')
+        .order('created_at', { ascending: true })
 
       if (error) {
         console.error('Supabase fetchFolders error:', error)
@@ -69,21 +66,25 @@ export default function DashboardPage() {
     }
 
     fetchFolders()
-  }, [currentFolderId])
+  }, [])
 
-  /* ---------------- FETCH NOTES ---------------- */
+  const getChildren = (parentId: string | null) =>
+    folders.filter((f) => f.parent_id === parentId)
+
+  /* ---------------- FETCH NOTES (MAIN PANEL) ---------------- */
 
   useEffect(() => {
     const fetchNotes = async () => {
-      let query = supabase.from('notes').select('*').order('created_at', { ascending: true })
-
-      if (currentFolderId === null) {
-        query = query.is('folder_id', null)
-      } else {
-        query = query.eq('folder_id', currentFolderId)
+      if (!currentFolderId) {
+        setNotes([])
+        return
       }
 
-      const { data, error } = await query
+      const { data, error } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('folder_id', currentFolderId)
+        .order('created_at', { ascending: true })
 
       if (error) {
         console.error('Supabase fetchNotes error:', error)
@@ -94,21 +95,6 @@ export default function DashboardPage() {
 
     fetchNotes()
   }, [currentFolderId])
-
-  /* ---------------- NAVIGATION ---------------- */
-
-  const enterFolder = (folderId: string) => {
-    setFolderStack((prev) => [...prev, currentFolderId ?? 'root'])
-    setCurrentFolderId(folderId)
-  }
-
-  const goBack = () => {
-    const stack = [...folderStack]
-    const prev = stack.pop()
-
-    setFolderStack(stack)
-    setCurrentFolderId(prev === 'root' ? null : prev ?? null)
-  }
 
   /* ---------------- ACTIONS ---------------- */
 
@@ -121,210 +107,184 @@ export default function DashboardPage() {
     const name = prompt('Folder name?')
     if (!name?.trim()) return
 
+    const isSubfolder = currentFolderId
+    ? confirm('Make this a subfolder of the currently selected folder?')
+    : false
+
+    const parentId = isSubfolder ? currentFolderId : null
+
     const { data: userData } = await supabase.auth.getUser()
     if (!userData.user) return
 
     const { data, error } = await supabase
-      .from('folders')
-      .insert({
-        name: name.trim(),
-        parent_id: currentFolderId,
-        user_id: userData.user.id,
-      })
-      .select()
-      .single()
+    .from('folders')
+    .insert({
+    name: name.trim(),
+    parent_id: parentId,
+    user_id: userData.user.id,
+    })
+    .select()
+    .single()
 
     if (error) {
-      console.error('Supabase error:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      })
-    }
-    else if (data) {
+      console.error('Supabase error:', error)
+    } else if (data) {
       setFolders((prev) => [...prev, data])
     }
   }
 
-  const handleDeleteFolder = async (folderId: string) => {
-    const { error } = await supabase.from('folders').delete().eq('id', folderId)
-
-    if (error) {
-      console.error('Supabase error:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      })
-    }
-    else {
-      setFolders((prev) => prev.filter((f) => f.id !== folderId))
-    }
-  }
-
-  const handleCreateNote = async () => {
-    const title = prompt('Note title?')
-    if (!title?.trim()) return
-
-    const { data: userData } = await supabase.auth.getUser()
-    if (!userData.user) return
-
-    const { data, error } = await supabase
-      .from('notes')
-      .insert({
-        title: title.trim(),
-        content: '',
-        folder_id: currentFolderId,
-        user_id: userData.user.id,
-      })
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Supabase error:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      })
-    }
-    else if (data) {
-      setNotes((prev) => [...prev, data])
-    }
-  }
 
   const handleUploadNote = async (folderId: string) => {
-    const fileInput = document.createElement('input')
-    fileInput.type = 'file'
-    fileInput.accept = '.pdf,.docx,.txt,.md'
-    fileInput.onchange = async () => {
-      const file = fileInput.files?.[0]
-      if (!file) return
+    if (!folderId) return;
 
-      // Upload file to Supabase Storage
-      const filePath = `${folderId}/${file.name}`
-      const { data, error: uploadError } = await supabase.storage
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.pdf,.docx,.txt,.md';
+
+    fileInput.onchange = async () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No user logged in');
+        return;
+      }
+      const userId = user.id;
+
+      // Unique file path
+      const timestamp = Date.now();
+      const filePath = `${userId}/${folderId}/${timestamp}-${file.name}`;
+
+      // Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('notes-files')
-        .upload(filePath, file, { upsert: true })
+        .upload(filePath, file, { upsert: true });
 
       if (uploadError) {
-        console.error('Upload error:', uploadError)
-        return
+        console.error('Upload error:', uploadError);
+        return;
       }
 
-      // Insert note into database
+      // Insert note row in db
       const { data: note, error: insertError } = await supabase
         .from('notes')
         .insert({
           folder_id: folderId,
-          user_id: (await supabase.auth.getUser()).data.user?.id,
-          title: file.name,
-          file_url: data.path,
+          user_id: userId,
+          title: `${timestamp}-${file.name}`, // unique
+          file_url: uploadData.path,
+          content: '', // avoid null constraint
         })
         .select()
-        .single()
+        .single();
 
       if (insertError) {
-        console.error('Insert note error:', insertError)
-      } else {
-        console.log('Note created:', note)
+        console.error('Insert note error:', insertError, 'Note data:', {
+          folderId,
+          userId,
+          title: `${timestamp}-${file.name}`,
+          file_url: uploadData.path,
+        });
+      } else if (note) {
+        setNotes((prev) => [...prev, note]);
       }
-    }
-    fileInput.click()
-  }
+    };
+
+    fileInput.click();
+  };
+
 
 
   /* ---------------- UI ---------------- */
 
-  return (
-    <main className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
-      <p className="mt-1 text-gray-600">Logged in as {email ?? 'Unknown'}</p>
+  const FolderItem = ({ folder }: { folder: Folder }) => {
+    const children = getChildren(folder.id)
 
-      <button
-        onClick={handleLogout}
-        className="mt-4 bg-red-500 text-white px-4 py-2 rounded"
-      >
-        Log Out
-      </button>
+    return (
+      <div className="ml-2">
+        <button
+          onClick={() => setCurrentFolderId(folder.id)}
+          className={`block w-full text-left px-2 py-1 rounded hover:bg-gray-200 ${
+            currentFolderId === folder.id ? 'bg-gray-200 font-medium' : ''
+          }`}
+        >
+          <img src="images/black-folder.svg" alt="Folder" className="inline w-5 h-5 mr-1" />
+          {folder.name}
+        </button>
 
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Folders</h2>
-
-          {currentFolderId && (
-            <button
-              onClick={goBack}
-              className="text-sm text-blue-600 hover:underline"
-            >
-              ← Back
-            </button>
-          )}
-        </div>
-
-        {folders.length === 0 ? (
-          <p className="text-gray-500">No folders here</p>
-        ) : (
-          <ul className="space-y-2">
-            {folders.map((folder) => (
-              <li
-                key={folder.id}
-                className="p-3 bg-gray-100 rounded flex justify-between items-center cursor-pointer hover:bg-gray-200"
-                onClick={() => enterFolder(folder.id)}
-              >
-                <span>{folder.name}</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleDeleteFolder(folder.id)
-                  }}
-                  className="text-sm bg-red-500 text-white px-2 py-1 rounded"
-                >
-                  Delete
-                </button>
-              </li>
+        {children.length > 0 && (
+          <div className="ml-4">
+            {children.map((child) => (
+              <FolderItem key={child.id} folder={child} />
             ))}
-          </ul>
+          </div>
         )}
-
-        <h3 className="text-lg font-semibold mt-6 mb-2">Notes</h3>
-
-        {notes.length === 0 ? (
-          <p className="text-gray-500">No notes here</p>
-        ) : (
-          <ul className="space-y-2">
-            {notes.map((note) => (
-              <li key={note.id} className="p-3 bg-gray-100 rounded">
-                {note.title}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="flex gap-2 mt-6">
-          <button
-            onClick={handleCreateFolder}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
-          >
-            Create Folder
-          </button>
-
-          <button
-            onClick={handleCreateNote}
-            className="bg-green-500 text-white px-4 py-2 rounded"
-          >
-            Create Note
-          </button>
-
-          <button
-            onClick={handleUploadNote.bind(null, currentFolderId ?? '')}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
-          >
-            Upload Note
-          </button>
-        </div>
       </div>
+    )
+  }
+
+  return (
+    <main className="flex h-screen overflow-hidden">
+      {/* Sidebar */}
+      <aside className="w-64 border-r bg-gray-50 p-4 overflow-y-auto">
+        <h1 className="text-lg font-bold mb-2">Folders</h1>
+        {getChildren(null).map((folder) => (
+          <FolderItem key={folder.id} folder={folder} />
+        ))}
+
+        <button
+          onClick={handleCreateFolder}
+          className="mt-4 w-full text-white px-3 py-2 bg-[#453750] transition duration-300 ease-in-out hover:bg-[#5b4769] hover:scale-105 hover:shadow-lg"
+        >
+          + New Folder
+        </button>
+      </aside>
+
+      {/* Main Content */}
+      <section className="flex-1 p-6 overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold">Notes</h2>
+            <p className="text-sm text-gray-600">Logged in as {email ?? 'Unknown'}</p>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => currentFolderId && handleUploadNote(currentFolderId)}
+              className="text-white px-4 py-2 bg-[#453750] transition duration-300 ease-in-out hover:bg-[#5b4769] hover:scale-105 hover:shadow-lg"
+            >
+              + Add Note
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="text-white px-4 py-2 bg-[#7F3A3A] transition duration-300 ease-in-out hover:bg-[#A55757] hover:scale-105 hover:shadow-lg"
+            >
+              Log Out
+            </button>
+          </div>
+        </div>
+
+        {currentFolderId === null ? (
+          <p className="text-gray-500">Select a folder to view notes</p>
+        ) : notes.length === 0 ? (
+          <p className="text-gray-500">No notes in this folder</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {notes.map((note) => (
+              <div
+                key={note.id}
+                className="p-4 border rounded-lg hover:shadow cursor-pointer"
+              >
+                <img src="images/black-note.svg" alt="Note" className="inline w-5 h-5 mr-1" />
+                <p className="mt-2 font-medium truncate">{note.title}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </main>
   )
 }
