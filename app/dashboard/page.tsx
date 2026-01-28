@@ -206,11 +206,11 @@ export default function DashboardPage() {
       <div className="ml-2">
         <button
           onClick={() => setCurrentFolderId(folder.id)}
-          className={`block w-full text-left px-2 py-1 rounded hover:bg-gray-200 ${
-            currentFolderId === folder.id ? 'bg-gray-200 font-medium' : ''
+          className={`block w-full text-white text-left px-2 py-1 rounded hover:bg-[#5b4769] ${
+            currentFolderId === folder.id ? 'bg-[#5b4769] font-medium' : ''
           }`}
         >
-          <img src="images/black-folder.svg" alt="Folder" className="inline w-5 h-5 mr-1" />
+          <img src="images/white-folder.svg" alt="Folder" className="inline w-5 h-5 mr-1" />
           {folder.name}
         </button>
 
@@ -228,8 +228,8 @@ export default function DashboardPage() {
   return (
     <main className="flex h-screen overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 border-r bg-gray-50 p-4 overflow-y-auto">
-        <h1 className="text-lg font-bold mb-2">Folders</h1>
+      <aside className="w-64 border-r bg-[#453750] p-4 overflow-y-auto">
+        <h1 className="text-lg text-white font-bold mb-2">Folders</h1>
         {getChildren(null).map((folder) => (
           <FolderItem key={folder.id} folder={folder} />
         ))}

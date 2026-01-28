@@ -31,8 +31,6 @@ Cat-Cards is a **work-in-progress** study companion web app designed to make stu
 * **Language:** TypeScript
 * **UI Direction:** Pixel-art inspired, cute and minimal
 
-*(Backend, authentication, and AI integrations are planned for future updates.)*
-
 
 ## Target Users
 
