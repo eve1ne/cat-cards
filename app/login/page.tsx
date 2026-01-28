@@ -50,7 +50,7 @@ export default function LoginPage() {
 
         {error && <p className="text-red-500 text-sm">{error}</p>}
 
-        <button className="w-full bg-[#453750] text-white px-6 py-3 transition duration-300 ease-in-out hover:bg-[#5b4769] hover:scale-105 hover:shadow-lg">
+        <button className="mb-48 w-full bg-[#453750] text-white px-6 py-3 transition duration-300 ease-in-out hover:bg-[#5b4769] hover:scale-105 hover:shadow-lg">
           Log In
         </button>
       </form>
