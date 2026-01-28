@@ -1,8 +1,9 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { useRouter } from 'next/navigation';
+import AddFolderModal from "@/app/components/addFolder";
 
 type Folder = {
   id: string
@@ -21,8 +22,6 @@ type Note = {
 }
 
 
-
-
 export default function DashboardPage() {
   
   const router = useRouter()
@@ -32,6 +31,8 @@ export default function DashboardPage() {
   const [notes, setNotes] = useState<Note[]>([])
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
+  const [showCreateFolder, setShowCreateFolder] = useState<boolean>(false);
+
 
   /* ---------------- AUTH ---------------- */
 
@@ -103,35 +104,36 @@ export default function DashboardPage() {
     router.push('/login')
   }
 
-  const handleCreateFolder = async () => {
-    const name = prompt('Folder name?')
-    if (!name?.trim()) return
+  const handleCreateFolder = async (
+    name: string,
+    isSubfolder: boolean
+  ): Promise<void> => {
+    if (!name.trim()) return;
 
-    const isSubfolder = currentFolderId
-    ? confirm('Make this a subfolder of the currently selected folder?')
-    : false
+    const parentId = isSubfolder ? currentFolderId : null;
 
-    const parentId = isSubfolder ? currentFolderId : null
-
-    const { data: userData } = await supabase.auth.getUser()
-    if (!userData.user) return
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) return;
 
     const { data, error } = await supabase
-    .from('folders')
-    .insert({
-    name: name.trim(),
-    parent_id: parentId,
-    user_id: userData.user.id,
-    })
-    .select()
-    .single()
+      .from("folders")
+      .insert({
+        name: name.trim(),
+        parent_id: parentId,
+        user_id: userData.user.id,
+      })
+      .select()
+      .single();
 
     if (error) {
-      console.error('Supabase error:', error)
+      console.error("Supabase error:", error);
     } else if (data) {
-      setFolders((prev) => [...prev, data])
+      setFolders((prev) => [...prev, data]);
     }
-  }
+  };
+
+
+
 
 
   const handleUploadNote = async (folderId: string) => {
@@ -235,12 +237,20 @@ export default function DashboardPage() {
         ))}
 
         <button
-          onClick={handleCreateFolder}
+          onClick={() => setShowCreateFolder(true)}
           className="mt-4 w-full text-white px-3 py-2 bg-[#453750] transition duration-300 ease-in-out hover:bg-[#5b4769] hover:scale-105 hover:shadow-lg"
         >
           + New Folder
         </button>
       </aside>
+
+      <AddFolderModal
+        isOpen={showCreateFolder}
+        onClose={() => setShowCreateFolder(false)}
+        onCreate={handleCreateFolder}
+        hasCurrentFolder={!!currentFolderId}
+      />
+
 
       {/* Main Content */}
       <section className="flex-1 p-6 overflow-y-auto">
