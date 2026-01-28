@@ -46,18 +46,19 @@ export default function AddFolder({
       />
 
       {hasCurrentFolder && (
-        <label style={{ marginTop: "0.75rem", display: "block" }}>
+        <label className="mt-4 flex items-center">
           <input
             type="checkbox"
             checked={isSubfolder}
             onChange={(e) => setIsSubfolder(e.target.checked)}
           />
-          {" "}Make this a subfolder
+          <p className="ml-2">Make this a subfolder</p>
         </label>
       )}
 
       <div className="p-4 flex justify-end gap-2">
-        <button onClick={handleSubmit}>Create</button>
+        <button className="text-white px-4 py-2 bg-[#453750] transition duration-300 ease-in-out hover:bg-[#5b4769] hover:scale-105 hover:shadow-lg"
+        onClick={handleSubmit}>Create</button>
       </div>
     </Popup>
   );
