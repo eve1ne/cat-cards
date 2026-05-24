@@ -12,6 +12,7 @@
     "@supabase/supabase-js": "^2.90.1",
     "@trigger.dev/sdk": "^4.4.6",
     "next": "16.1.1",
+    "pdf2json": "^4.0.3",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },

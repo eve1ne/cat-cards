@@ -275,6 +275,26 @@ export default function DashboardPage() {
               Log Out
             </button>
           </div>
+          <button
+          onClick={async () => {
+            if (!currentFolderId) return;
+
+            await fetch("/api/process-folder", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                folderId: currentFolderId,
+              }),
+            });
+
+            alert("Folder summary generation started!");
+          }}
+          className="text-white px-4 py-2 bg-[#453750] transition duration-300 ease-in-out hover:bg-[#5b4769] hover:scale-105 hover:shadow-lg"
+        >
+          Summarize Folder
+        </button>
         </div>
 
         {currentFolderId === null ? (
@@ -286,10 +306,34 @@ export default function DashboardPage() {
             {notes.map((note) => (
               <div
                 key={note.id}
-                className="p-4 border rounded-lg hover:shadow cursor-pointer"
+                className="p-4 border rounded-lg"
               >
                 <img src="images/black-note.svg" alt="Note" className="inline w-5 h-5 mr-1" />
                 <p className="mt-2 font-medium truncate">{note.title}</p>
+                <button
+                  onClick={async () => {
+                    await fetch("/api/process-pdf", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        noteId: note.id,
+                        filePath: note.file_url,
+                      }),
+                    });
+
+                    alert("Summary generation started!");
+                  }}
+                  className="mt-3 px-3 py-1 bg-[#453750] text-white rounded hover:bg-[#5b4769]"
+                >
+                  Generate Summary
+                </button>
+                {note.content && (
+                  <p className="mt-3 text-sm text-gray-600 line-clamp-4">
+                    {note.content}
+                  </p>
+                )}
               </div>
             ))}
           </div>
